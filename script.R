@@ -1,10 +1,6 @@
 
-# Goal
-# 0. Is there a correlation between emotional magnitude based on location
-# 1. Is there a correlation between the number of posted tweets and the magnitude emotional (globally and by gender)
-# 2. Is there a emotional magnitude variation of tweets based on hours (globally and by gender)
-# 3. Is people who publish a lot are more expose to be agressive on tweeter
-# 4. Is there a correlation between the number of posted tweets and the emotional magnitude
+# Description 
+# Study the emotional magnitude of tweets by gender and localization
 
 # Load packages
 library(tidyverse)
