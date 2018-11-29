@@ -1,8 +1,9 @@
 
-# Description 
-# Study the emotional magnitude of tweets by gender and localization
+# Description : study the emotional magnitude of tweets by gender and localization
+# School : ENC 
+# Date : 29 novembre 2018
 
-# Load packages
+# Load packages, or install them if not 
 library(tidyverse)
 library(ggthemes)
 library(reticulate)
@@ -15,13 +16,13 @@ use_virtualenv(virtualenv = "enc_venv", required = TRUE)
 # Source python module
 source_python("python/processing.py")
 
-# Launch processing() function and select the pertinent variable for our analysis
+# Launch processing() function and select the pertinent variables for our analysis
 dt <- processing() %>% select(`_unit_id`, gender, description, Description, text, Tweets, tweet_created, tweet_coord, created, fav_number, retweet_count, user_timezone)
 
-# Rename columns with inteligible words
+# Rename columns with intelligible words
 colnames(dt) <- c("id", "gender", "profil_description", "cln_profile_description", "tweet",  "cln_tweet", "tweet_created_at", "tweet_loc", "profile_created_at", "count_favorite", "retwweet_count", "timezone")
 
-# Restructure timezone and gender column
+# Restructure timezone and gender column, eliminate words with length > 3 letters 
 dt$timezone <- str_replace(dt$timezone, " \\(.*\\)", "") # remove bracket in timezone
 dt$gender <- dt$gender %>% as.character() # gender as character not a list
 dt$cln_tweet <- lapply(dt$cln_tweet, function(x) { str_extract_all(x, '\\w{3,}') %>% unlist() }) # remove words were length < 3
@@ -29,8 +30,6 @@ dt$cln_tweet <- lapply(dt$cln_tweet, function(x) { str_extract_all(x, '\\w{3,}')
 # Count the number of tweet by Timezone (1.) and remove the unknown timezone (2.) -> 7798 rows removed (38%)
 n_tweets_by_loc <- dt %>% group_by(timezone) %>% summarise(count = n()) %>% arrange(desc(count)) # 1.
 n_tweets_by_loc <-  n_tweets_by_loc[!n_tweets_by_loc$timezone=="NaN",] # 2.
-# Remove words which have a length < 3
-
 
 # Plot the top 10 occurences of Tweet by Timezone
 p1 <-
@@ -43,17 +42,23 @@ p1 <-
   theme(plot.title = element_text(size = 13, face = "bold")) +
   scale_fill_discrete(name="Timezone")
 
-# Count tweet by gender first and then by timezone and gender 
+# Count tweet by gender
 # -> male : 6194 tweets , female : 6700 tweets
 dt %>% group_by(gender) %>%
   summarise(count = n()) %>%
   filter(gender %in% c("male","female"))
 
+# Count tweet by gender and timezone 
 gender_tz <- dt %>% group_by(gender, timezone) %>%
   summarise(count = n()) %>% filter(gender %in% c("male", "female")) %>%
   .[!.$timezone=="NaN",] %>% arrange(desc(count))
 
-top_tz <- n_tweets_by_loc[1:10,]$timezone # select 10th first timezone based on occurences
+# Select 10 first lines (top 10)
+top_tz <- n_tweets_by_loc[1:10,]$timezone
+
+#
+# Viz !
+#
 p2 <- 
   gender_tz %>% filter(timezone %in% top_tz) %>%
   ggplot(mapping = aes(x = timezone, y = count, fill = gender)) + 
@@ -66,18 +71,25 @@ p2 <-
 
 
 
+########################
+## Sentiment analysis ##
+########################
+
 # Create two dataframes, on by each gender
 male_tweets <- dt %>% filter(gender == "male")
 female_tweets <- dt %>% filter(gender == "female")
 
+# Select one specific timezone
+# [1] "Eastern Time"  "Pacific Time"  "Central Time"  "London"        "Atlantic Time" "Quito"         "Amsterdam"    
+# [8] "Arizona"       "Mountain Time" "Casablanca"
 selected_tz <- top_tz[8]
 
-# Filter Eastern Timezone tweets for male
+# Filter tweets from male for the current timezone
 eastern_tz_words_male <- 
   male_tweets %>% filter(timezone == selected_tz) %>% 
   pull(cln_tweet) %>% unlist() %>% data.frame(word = .) %>% cbind(gender = "male")
 
-# FilterEastern Timezone tweets for male
+# Filter tweets from female for the current timezone
 eastern_tz_words_female <- 
   female_tweets %>% filter(timezone == selected_tz) %>%
   pull(cln_tweet) %>% unlist() %>% data.frame(word = .) %>% cbind(gender = "female")
@@ -87,6 +99,7 @@ eastern_tz_words_both <-
   rbind(eastern_tz_words_female, eastern_tz_words_male) %>%
   inner_join(get_sentiments("afinn")) %>% distinct()
 
+# Moments (kurtosis and skewness)
 stat_tbl <- 
   eastern_tz_words_both %>% group_by(gender) %>%
   summarise(
@@ -101,23 +114,12 @@ stat_tbl <-
 ### Viz !
 ## ----
 
-## -> histogramme
+## -> Histogram 
 ggplot(data = eastern_tz_words_both, aes(x=score, color=gender)) + 
   geom_histogram(fill="white", position="dodge")
 
-## -> density
+## -> Density
 ggplot(data = eastern_tz_words_both, aes(x=score, color=gender, fill=gender)) + 
   geom_density(alpha=.2) +
   ggtitle(sprintf("Emotional magnitude of tweets by gender in %s", selected_tz)) 
-
-
-### Statistics on the current dataframe 
-library(moments)
-eastern_tz_words_both %>% group_by(gender) %>% summarise(count = n())
-eastern_tz_words_both %>% group_by(gender) %>% summarise(
-                                                         mean = mean(score),
-                                                         sd = sd(score), 
-                                                         kurtosis = kurtosis(score),
-                                                         skew = skewness(score)
-                                                         )
 
