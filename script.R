@@ -5,9 +5,9 @@
 # Load packages
 library(tidyverse)
 library(ggthemes)
-library(lubridate)
 library(reticulate)
 library(tidytext)
+library(moments)
 
 # Load python environment
 use_virtualenv(virtualenv = "enc_venv", required = TRUE)
@@ -70,7 +70,7 @@ p2 <-
 male_tweets <- dt %>% filter(gender == "male")
 female_tweets <- dt %>% filter(gender == "female")
 
-selected_tz <- top_tz[5]
+selected_tz <- top_tz[8]
 
 # Filter Eastern Timezone tweets for male
 eastern_tz_words_male <- 
@@ -108,5 +108,16 @@ ggplot(data = eastern_tz_words_both, aes(x=score, color=gender)) +
 ## -> density
 ggplot(data = eastern_tz_words_both, aes(x=score, color=gender, fill=gender)) + 
   geom_density(alpha=.2) +
-  ggtitle(sprintf("Emotional magnitude of tweets by gender in %s [Timezone]", selected_tz)) 
+  ggtitle(sprintf("Emotional magnitude of tweets by gender in %s", selected_tz)) 
+
+
+### Statistics on the current dataframe 
+library(moments)
+eastern_tz_words_both %>% group_by(gender) %>% summarise(count = n())
+eastern_tz_words_both %>% group_by(gender) %>% summarise(
+                                                         mean = mean(score),
+                                                         sd = sd(score), 
+                                                         kurtosis = kurtosis(score),
+                                                         skew = skewness(score)
+                                                         )
 
